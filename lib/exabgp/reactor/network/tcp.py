@@ -20,12 +20,13 @@ from exabgp.protocol.ip import IP
 from exabgp.reactor.network.error import errno
 from exabgp.reactor.network.error import error
 
-from .error import NotConnected
-from .error import BindingError
-from .error import MD5Error
-from .error import NagleError
-from .error import TTLError
-from .error import AsyncError
+from exabgp.reactor.network.error import NotConnected
+from exabgp.reactor.network.error import BindingError
+from exabgp.reactor.network.error import MD5Error
+from exabgp.reactor.network.error import NagleError
+from exabgp.reactor.network.error import TTLError
+from exabgp.reactor.network.error import AsyncError
+from exabgp.reactor.network.error import KeepAliveError
 
 from exabgp.logger import Logger
 
@@ -169,6 +170,15 @@ def async (io,ip):
 		io.setblocking(0)
 	except socket.error, e:
 		raise AsyncError('could not set socket non-blocking for %s (%s)' % (ip,errstr(e)))
+
+def keepalive (io,ip):
+	try:
+		io.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+		io.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 1)
+		io.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 1)
+		io.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 5)
+	except socket.error, e:
+		raise KeepAliveError('could not set socket keepalive for %s (%s)' % (ip,errstr(e)))
 
 def ready (io):
 	logger = Logger()

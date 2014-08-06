@@ -208,6 +208,7 @@ def main ():
 			'delay': (environment.integer,environment.nop,'0',      'start to announce route when the minutes in the hours is a modulo of this number'),
 			'bind': (environment.optional_ip,environment.quote,'', 'IP to bind on when listening (no ip to disable)'),
 			'port': (environment.integer,environment.nop,'179', 'port to bind on when listening'),
+			'keepalive': (environment.boolean,environment.lower,'', 'enable tcp keepalive on the socket'),
 			'acl': (environment.boolean,environment.lower,'', '(experimental) unimplemented'),
 		},
 		'bgp' : {

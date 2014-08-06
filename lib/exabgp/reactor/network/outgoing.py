@@ -1,12 +1,15 @@
-from .connection import Connection
-from .tcp import create,bind
-from .tcp import connect
-from .tcp import MD5
-from .tcp import nagle
-from .tcp import TTL
-from .tcp import async
-from .tcp import ready
-from .error import NetworkError
+from exabgp.reactor.network.connection import Connection
+from exabgp.reactor.network.tcp import create,bind
+from exabgp.reactor.network.tcp import connect
+from exabgp.reactor.network.tcp import MD5
+from exabgp.reactor.network.tcp import nagle
+from exabgp.reactor.network.tcp import TTL
+from exabgp.reactor.network.tcp import async
+from exabgp.reactor.network.tcp import keepalive
+from exabgp.reactor.network.tcp import ready
+from exabgp.reactor.network.error import NetworkError
+
+from exabgp.configuration.environment import environment
 
 class Outgoing (Connection):
 	direction = 'outgoing'
@@ -21,12 +24,15 @@ class Outgoing (Connection):
 		self.afi = afi
 		self.md5 = md5
 		self.port = port
+		self.keepalive = environment.settings().tcp.keepalive
 
 		try:
 			self.io = create(afi)
 			MD5(self.io,peer,port,afi,md5)
 			bind(self.io,local,afi)
 			async(self.io,peer)
+			if self.keepalive:
+				keepalive(self.io,peer)
 			connect(self.io,peer,port,afi,md5)
 			self.init = True
 		except NetworkError,e:

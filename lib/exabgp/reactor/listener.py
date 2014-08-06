@@ -11,9 +11,15 @@ import socket
 from exabgp.util.errstr import errstr
 
 from exabgp.protocol.family import AFI
+from exabgp.protocol.ip import IP
+
 #from exabgp.util.coroutine import each
-from exabgp.util.ip import isipv4
-from exabgp.util.ip import isipv6
+
+from exabgp.reactor.network.tcp import create
+from exabgp.reactor.network.tcp import bind
+from exabgp.reactor.network.tcp import async
+from exabgp.reactor.network.tcp import keepalive
+
 from exabgp.reactor.network.error import error
 from exabgp.reactor.network.error import errno
 from exabgp.reactor.network.error import NetworkError
@@ -22,6 +28,7 @@ from exabgp.reactor.network.error import AcceptError
 from exabgp.reactor.network.incoming import Incoming
 
 from exabgp.logger import Logger
+from exabgp.configuration.environment import environment
 
 
 class Listener (object):
@@ -35,26 +42,17 @@ class Listener (object):
 		#self._connected = {}
 		self.logger = Logger()
 
+		self.keepalive = environment.settings().tcp.keepalive
+
 	def _bind (self,ip,port):
+		s = create(IP.toafi(ip))
+		bind(s,ip)
+		async(s,ip)
+
+		if self.keepalive:
+			keepalive(s,ip)
+
 		try:
-			if isipv6(ip):
-				s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-				try:
-					s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-				except (socket.error,AttributeError):
-					pass
-				s.bind((ip,port,0,0))
-			elif isipv4(ip):
-				s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-				try:
-					s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-				except (socket.error,AttributeError):
-					pass
-				s.bind((ip,port))
-			else:
-				return None
-			s.setblocking(0)
-			##s.settimeout(0.0)
 			s.listen(self._backlog)
 			return s
 		except socket.error, e:
