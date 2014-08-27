@@ -33,7 +33,9 @@ class BMPHandler (asyncore.dispatcher_with_send):
 	def announce (self,*args):
 		print >> self.fd, self.ip, self.port, ' '.join(str(_) for _ in args) if len(args) > 1 else args[0]
 
-	def setup (self,env,ip,port):
+	def setup (self,env,ip,port,socket=None):
+		self.sock = self if socket == None else socket
+
 		self.handle = {
 			Message.ROUTE_MONITORING : self._route,
 			Message.STATISTICS_REPORT : self._statistics,
@@ -52,7 +54,7 @@ class BMPHandler (asyncore.dispatcher_with_send):
 		left = number
 		while left:
 			try:
-				r,_,_ = select.select([self], [], [], 1.0)
+				r,_,_ = select.select([self.sock], [], [], 1.0 if self.sock is self else 0.0)
 			except select.error,e:
 				return None
 
@@ -60,7 +62,7 @@ class BMPHandler (asyncore.dispatcher_with_send):
 				continue
 
 			try:
-				data = self.recv(left)
+				data = self.sock.recv(left)
 			except socket.error, e:
 				if e.args[0] in error.block:
 					continue
@@ -114,23 +116,53 @@ class BMPHandler (asyncore.dispatcher_with_send):
 	def _peer (self,header):
 		pass
 
-class BMPServer(asyncore.dispatcher):
+class ThreadedBMPServer(asyncore.dispatcher):
 	def __init__(self, env):
 		self.env = env
-		host = env.bmp.host
-		port = env.bmp.port
+		self.host = env.bmp.host
+		self.port = env.bmp.port
+
 		asyncore.dispatcher.__init__(self)
+
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.set_reuse_addr()
-		self.bind((host, port))
+		self.bind((self.host, self.port))
 		self.listen(5)
 
-	def handle_accept(self):
+	def handle_accept (self):
 		pair = self.accept()
 		if pair is not None:
-			sock, addr = pair
-			print "new BGP connection from", addr
-			handler = BMPHandler(sock).setup(self.env,*addr)
+			sock, (ip, port) = pair
+			print "new BGP connection from %s:%s" % (ip, port)
+			BMPHandler(sock).setup(self.env,ip,port)
+
+	def run (self):
+		asyncore.loop()
+
+
+class SimpleBMPServer (object):
+	def __init__(self, env):
+		self.env = env
+		self.host = env.bmp.host
+		self.port = env.bmp.port
+
+		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.sock.bind((self.host, self.port))
+		self.sock.listen(1)
+
+	def run (self):
+		while True:
+			pair = self.sock.accept()
+			if pair is not None:
+				sock, (ip, port) = pair
+				print "new BGP connection from %s:%s" % (ip, port)
+				handler = BMPHandler(sock).setup(self.env,ip,port,sock)
+
+				while True:
+					handler.handle_read()
+
+	def close (self):
+		return self.sock.close()
 
 def drop ():
 	uid = os.getuid()
@@ -208,13 +240,20 @@ environment.configuration = {
 		'name'    : (environment.nop,environment.nop,'ExaBMP', 'name'),
 		'version' : (environment.nop,environment.nop,version,  'version'),
 	},
-	# # Here for internal use
-	# 'debug' : {
-	# 	'memory' : (environment.boolean,environment.lower,'false','command line option --memory'),
-	# },
+	# Here for internal use
+	'debug' : {
+		'pdb' : (environment.boolean,environment.lower,'false','enable python debugger on errors'),
+		'memory' : (environment.boolean,environment.lower,'false','command line option --memory'),
+		'configuration' : (environment.boolean,environment.lower,'false','undocumented option: raise when parsing configuration errors'),
+		'selfcheck' : (environment.boolean,environment.lower,'false','does a self check on the configuration file'),
+		'route' : (environment.unquote,environment.quote,'','decode the route using the configuration'),
+		'defensive' : (environment.boolean,environment.lower,'false', 'generate random fault in the code in purpose'),
+	},
 }
 
 env = environment.setup('')
+
+print 'listening on %s:%s' % (env['bmp']['host'],env['bmp']['port'])
 
 try:
 	os.dup2(2,3)
@@ -223,10 +262,12 @@ except:
 	print "can not setup a descriptor of FD 3 for route display"
 	sys.exit(1)
 
-server = BMPServer(env)
+#server = ThreadedBMPServer(env)
+server = SimpleBMPServer(env)
 drop()
+server.run()
 
-try:
-	asyncore.loop()
-except:
-	pass
+# try:
+# 	server.run()
+# except Exception,e:
+# 	pass
