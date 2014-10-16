@@ -72,6 +72,7 @@ class Attribute (object):
 		# RFC5512
 		TUNNEL_ENCAP       = 0x17  # 23
 		AIGP               = 0x1A  # 26
+                SLA                = 0x1B  # 27
 
 		INTERNAL_WITHDRAW  = 0xFFFD
 		INTERNAL_WATCHDOG  = 0xFFFE
@@ -99,6 +100,8 @@ class Attribute (object):
 			0x16: 'pmsi-tunnel',
 			0x17: 'tunnel-encaps',
 			0x1a: 'aigp',
+		        0x1b: 'sla',
+
 			0xfffd: 'internal-withdraw',
 			0xfffe: 'internal-watchdog',
 			0xffff: 'internal-split',
