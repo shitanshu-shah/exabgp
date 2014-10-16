@@ -89,6 +89,8 @@ class Attributes (dict):
 		Attribute.ID.EXTENDED_COMMUNITY : ('list',    '', 'extended-community', '%s',     '%s'),
 		Attribute.ID.PMSI_TUNNEL        : ('string',  '', 'pmsi',               '%s',     '%s'),
 		Attribute.ID.AIGP               : ('integer', '', 'aigp',               '%s',     '%s'),
+                Attribute.ID.SLA                : ('list',    '', 'sla',                '%s',     '%s')
+
 	}
 
 	def __init__ (self):
